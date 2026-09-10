@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    package="org.tejasos.launcher">
+
+    <!-- Core Launcher Permissions -->
+    <uses-permission android:name="android.permission.SET_WALLPAPER" />
+    <uses-permission android:name="android.permission.SET_WALLPAPER_HINTS" />
+
+    <!-- App Management Permissions -->
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
+        tools:ignore="QueryAllPackagesPermission" />
+    <uses-permission android:name="android.permission.GET_PACKAGE_SIZE" />
+    <uses-permission android:name="android.permission.CLEAR_APP_CACHE" />
+    <uses-permission android:name="android.permission.UNINSTALL_PACKAGES" />
+
+    <!-- Device Settings Permissions -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.WRITE_SETTINGS" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+
+    <!-- Brightness Control (SDK 33+) -->
+    <uses-permission android:name="android.permission.CONTROL_DISPLAY_BRIGHTNESS" />
+
+    <!-- Quick Settings Permissions -->
+    <uses-permission android:name="android.permission.BIND_QUICK_SETTINGS_TILE" />
+
+    <!-- Control Center & Widget Permissions -->
+    <uses-permission android:name="android.permission.BIND_APPWIDGET" />
+    <uses-permission android:name="android.permission.BIND_DEVICE_ADMIN" />
+
+    <!-- Biometric for Kavach Privacy & DigiLocker -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+    <uses-permission android:name="android.permission.USE_FINGERPRINT" />
+
+    <!-- Location for Weather & NavIC Widget -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+    <!-- Camera/Mic Permission Monitoring for Kavach -->
+    <uses-permission android:name="android.permission.MONITOR_SENSOR_PERMISSION" />
+
+    <!-- Internet for Weather Data -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Runtime Permissions (Android 12+) -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+
+    <!-- Notification Access for Kavach Privacy Radar -->
+    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- System Alert Windows for Floating Privacy Indicator (Optional) -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
+    <!-- Flashlight Permission -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.FLASHLIGHT" />
+
+    <!-- Device Admin for Enhanced Control (Optional) -->
+    <uses-permission android:name="android.permission.BIND_DEVICE_ADMIN" />
+
+    <application
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.TejasLauncher"
+        tools:targetApi="31">
+
+        <!-- Main Launcher Activity -->
+        <activity
+            android:name="org.tejasos.launcher.ui.MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:stateNotNeeded="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.TejasLauncher.NoActionBar">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.HOME" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.HOME" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Wallpaper Service Declaration -->
+        <service
+            android:name="org.tejasos.launcher.wallpaper.TejasWallpaperService"
+            android:enabled="true"
+            android:exported="true"
+            android:label="@string/wallpaper_name"
+            android:permission="android.permission.BIND_WALLPAPER">
+            <intent-filter>
+                <action android:name="android.service.wallpaper.WallpaperService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.wallpaper"
+                android:resource="@xml/wallpaper" />
+        </service>
+
+        <!-- Quick Settings Tile Service -->
+        <service
+            android:name="org.tejasos.launcher.tiles.TejasQuickSettingsTile"
+            android:exported="true"
+            android:icon="@drawable/ic_tejas_logo"
+            android:label="@string/quick_settings_label"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
+        <!-- AppWidget Host Service -->
+        <service
+            android:name="org.tejasos.launcher.widget.AppWidgetHostService"
+            android:enabled="true"
+            android:exported="false"
+            android:permission="com.android.launcher.permission.READ_SETTINGS" />
+
+        <!-- Kavach Privacy Monitoring Service -->
+        <service
+            android:name="org.tejasos.launcher.security.KavachPrivacyService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
+        <!-- Notification Listener for Kavach (Optional) -->
+        <service
+            android:name="org.tejasos.launcher.security.NotificationAccessService"
+            android:enabled="true"
+            android:exported="true"
+            android:label="@string/notification_access_label"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
+        <!-- Broadcast Receivers for System Events -->
+        <receiver
+            android:name="org.tejasos.launcher.receiver.BootCompleteReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name="org.tejasos.launcher.receiver.PackageChangeReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.PACKAGE_ADDED" />
+                <action android:name="android.intent.action.PACKAGE_REMOVED" />
+                <action android:name="android.intent.action.PACKAGE_CHANGED" />
+                <data android:scheme="package" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Settings/Preferences Activity (Optional UI) -->
+        <activity
+            android:name="org.tejasos.launcher.ui.SettingsActivity"
+            android:exported="false"
+            android:label="@string/settings_label"
+            android:theme="@style/Theme.TejasLauncher" />
+
+        <!-- AppWidget Provider Declarations -->
+        <receiver
+            android:name="org.tejasos.launcher.widgets.SanskritPanchangWidgetProvider"
+            android:enabled="true"
+            android:exported="true"
+            android:label="@string/panchang_widget_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/sanskrit_panchang_appwidget_provider" />
+        </receiver>
+
+        <receiver
+            android:name="org.tejasos.launcher.widgets.NavICSatelliteWeatherWidgetProvider"
+            android:enabled="true"
+            android:exported="true"
+            android:label="@string/navic_weather_widget_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/navic_satellite_weather_appwidget_provider" />
+        </receiver>
+
+        <receiver
+            android:name="org.tejasos.launcher.widgets.TejasQuickPayWidgetProvider"
+            android:enabled="true"
+            android:exported="true"
+            android:label="@string/quick_pay_widget_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/tejas_quick_pay_appwidget_provider" />
+        </receiver>
+
+        <!-- Content Provider for Widget Data Sharing (Optional) -->
+        <provider
+            android:name="org.tejasos.launcher.provider.WidgetDataProvider"
+            android:authorities="org.tejasos.launcher.provider"
+            android:enabled="true"
+            android:exported="false" />
+
+        <!-- File Provider for App Info & File Sharing -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="org.tejasos.launcher.fileprovider"
+            android:enabled="true"
+            android:exported="false">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
+    </application>
+
+</manifest>
