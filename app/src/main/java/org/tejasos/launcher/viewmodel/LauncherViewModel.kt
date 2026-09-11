@@ -5,10 +5,12 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.os.Build
+import android.os.UserManager
 import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -54,44 +56,69 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 val app = getApplication<Application>()
                 val pm = app.packageManager
 
-                // इंजन 1: Intent Filter क्वेरी
+                // इंजन 1: LauncherApps (Android का आधिकारिक लॉन्चर API)
                 try {
-                    val mainIntent = Intent(Intent.ACTION_MAIN, null).apply {
-                        addCategory(Intent.CATEGORY_LAUNCHER)
-                    }
-                    val resolveInfos = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        pm.queryIntentActivities(mainIntent, PackageManager.ResolveInfoFlags.of(0L))
-                    } else {
-                        @Suppress("DEPRECATION")
-                        pm.queryIntentActivities(mainIntent, 0)
-                    }
+                    val launcherApps = app.getSystemService(Context.LAUNCHER_APPS_SERVICE) as? LauncherApps
+                    val userManager = app.getSystemService(Context.USER_SERVICE) as? UserManager
+                    val profiles = userManager?.userProfiles ?: emptyList()
 
-                    for (info in resolveInfos) {
-                        val pkg = info.activityInfo.packageName
-                        if (pkg != app.packageName) {
-                            val name = info.loadLabel(pm).toString()
-                            val icon = info.loadIcon(pm)
-                            result.add(AppModel(name, pkg, icon))
+                    if (launcherApps != null && profiles.isNotEmpty()) {
+                        for (profile in profiles) {
+                            val activityList = launcherApps.getActivityList(null, profile)
+                            for (item in activityList) {
+                                val pkg = item.applicationInfo.packageName
+                                if (pkg != app.packageName) {
+                                    result.add(
+                                        AppModel(
+                                            name = item.label.toString(),
+                                            packageName = pkg,
+                                            icon = item.getBadgedIcon(0)
+                                        )
+                                    )
+                                }
+                            }
                         }
                     }
                 } catch (e: Exception) {}
 
-                // इंजन 2 (फ़ुलप्रूफ़ फ़ॉलबैक): पैकेज मैनेजर सीधा स्कैन
+                // इंजन 2: Intent Filter फॉलबैक
                 if (result.isEmpty()) {
                     try {
-                        val installed = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                            pm.getInstalledApplications(PackageManager.ApplicationInfoFlags.of(0L))
-                        } else {
-                            @Suppress("DEPRECATION")
-                            pm.getInstalledApplications(PackageManager.GET_META_DATA)
+                        val mainIntent = Intent(Intent.ACTION_MAIN).apply {
+                            addCategory(Intent.CATEGORY_LAUNCHER)
                         }
+                        @Suppress("DEPRECATION")
+                        val resolveInfos = pm.queryIntentActivities(mainIntent, 0)
+                        for (info in resolveInfos) {
+                            val pkg = info.activityInfo.packageName
+                            if (pkg != app.packageName) {
+                                result.add(
+                                    AppModel(
+                                        name = info.loadLabel(pm).toString(),
+                                        packageName = pkg,
+                                        icon = info.loadIcon(pm)
+                                    )
+                                )
+                            }
+                        }
+                    } catch (e: Exception) {}
+                }
 
+                // इंजन 3: Installed Applications फॉलबैक
+                if (result.isEmpty()) {
+                    try {
+                        @Suppress("DEPRECATION")
+                        val installed = pm.getInstalledApplications(PackageManager.GET_META_DATA)
                         for (appInfo in installed) {
                             val pkg = appInfo.packageName
                             if (pkg != app.packageName && pm.getLaunchIntentForPackage(pkg) != null) {
-                                val name = pm.getApplicationLabel(appInfo).toString()
-                                val icon = pm.getApplicationIcon(appInfo)
-                                result.add(AppModel(name, pkg, icon))
+                                result.add(
+                                    AppModel(
+                                        name = pm.getApplicationLabel(appInfo).toString(),
+                                        packageName = pkg,
+                                        icon = appInfo.loadIcon(pm)
+                                    )
+                                )
                             }
                         }
                     } catch (e: Exception) {}
