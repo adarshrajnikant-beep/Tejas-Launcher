@@ -15,10 +15,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 
-/**
- * 3D Parallax Tilt Modifier
- * फोन को हाथ में हिलाने पर कार्ड्स में असली 3D रोटेशन और डेप्थ पैदा करता है
- */
 @Composable
 fun Modifier.tejasParallax(depthMultiplier: Float = 1.0f): Modifier {
     val context = LocalContext.current
@@ -26,13 +22,12 @@ fun Modifier.tejasParallax(depthMultiplier: Float = 1.0f): Modifier {
     var pitch by remember { mutableFloatStateOf(0f) }
 
     DisposableEffect(Unit) {
-        val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
-        val accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+        val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
+        val accelerometer = sensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
 
         val listener = object : SensorEventListener {
             override fun onSensorChanged(event: SensorEvent?) {
                 event?.let {
-                    // स्मूथ लो-पास फिल्टरिंग
                     roll = (roll * 0.8f) + (it.values[0] * 0.2f)
                     pitch = (pitch * 0.8f) + (it.values[1] * 0.2f)
                 }
@@ -40,8 +35,10 @@ fun Modifier.tejasParallax(depthMultiplier: Float = 1.0f): Modifier {
             override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
         }
 
-        sensorManager.registerListener(listener, accelerometer, SensorManager.SENSOR_DELAY_UI)
-        onDispose { sensorManager.unregisterListener(listener) }
+        if (sensorManager != null && accelerometer != null) {
+            sensorManager.registerListener(listener, accelerometer, SensorManager.SENSOR_DELAY_UI)
+        }
+        onDispose { sensorManager?.unregisterListener(listener) }
     }
 
     return this.graphicsLayer {
