@@ -5,10 +5,13 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.os.Build
+import android.os.Process
+import android.os.UserManager
 import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -50,36 +53,54 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             _isLoading.value = true
             val appsList = withContext(Dispatchers.IO) {
+                val result = mutableListOf<AppModel>()
+                val app = getApplication<Application>()
+
                 try {
-                    val pm = getApplication<Application>().packageManager
-                    val mainIntent = Intent(Intent.ACTION_MAIN, null).apply {
-                        addCategory(Intent.CATEGORY_LAUNCHER)
-                    }
+                    val launcherApps = app.getSystemService(Context.LAUNCHER_APPS_SERVICE) as? LauncherApps
+                    val userManager = app.getSystemService(Context.USER_SERVICE) as? UserManager
+                    val profiles = userManager?.userProfiles ?: listOf(Process.myUserHandle())
 
-                    val resolveInfos = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        pm.queryIntentActivities(mainIntent, PackageManager.ResolveInfoFlags.of(0L))
-                    } else {
-                        @Suppress("DEPRECATION")
-                        pm.queryIntentActivities(mainIntent, 0)
-                    }
-
-                    resolveInfos
-                        .filter { it.activityInfo.packageName != getApplication<Application>().packageName }
-                        .mapNotNull { resolveInfo ->
-                            try {
-                                AppModel(
-                                    name = resolveInfo.loadLabel(pm).toString(),
-                                    packageName = resolveInfo.activityInfo.packageName,
-                                    icon = resolveInfo.loadIcon(pm)
-                                )
-                            } catch (e: Exception) {
-                                null
+                    if (launcherApps != null) {
+                        for (profile in profiles) {
+                            val activityList = launcherApps.getActivityList(null, profile)
+                            for (act in activityList) {
+                                if (act.applicationInfo.packageName != app.packageName) {
+                                    result.add(
+                                        AppModel(
+                                            name = act.label.toString(),
+                                            packageName = act.applicationInfo.packageName,
+                                            icon = act.getBadgedIcon(0)
+                                        )
+                                    )
+                                }
                             }
                         }
-                        .sortedBy { it.name.lowercase() }
-                } catch (e: Exception) {
-                    emptyList()
+                    }
+                } catch (e: Exception) {}
+
+                if (result.isEmpty()) {
+                    try {
+                        val pm = app.packageManager
+                        val mainIntent = Intent(Intent.ACTION_MAIN).apply {
+                            addCategory(Intent.CATEGORY_LAUNCHER)
+                        }
+                        val resolveInfos = pm.queryIntentActivities(mainIntent, 0)
+                        for (info in resolveInfos) {
+                            if (info.activityInfo.packageName != app.packageName) {
+                                result.add(
+                                    AppModel(
+                                        name = info.loadLabel(pm).toString(),
+                                        packageName = info.activityInfo.packageName,
+                                        icon = info.loadIcon(pm)
+                                    )
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {}
                 }
+
+                result.distinctBy { it.packageName }.sortedBy { it.name.lowercase() }
             }
             _installedApps.value = appsList
             _isLoading.value = false
