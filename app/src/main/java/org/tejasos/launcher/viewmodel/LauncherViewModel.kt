@@ -5,13 +5,10 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.os.Build
-import android.os.Process
-import android.os.UserManager
 import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -55,46 +52,46 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             val appsList = withContext(Dispatchers.IO) {
                 val result = mutableListOf<AppModel>()
                 val app = getApplication<Application>()
+                val pm = app.packageManager
 
+                // इंजन 1: Intent Filter क्वेरी
                 try {
-                    val launcherApps = app.getSystemService(Context.LAUNCHER_APPS_SERVICE) as? LauncherApps
-                    val userManager = app.getSystemService(Context.USER_SERVICE) as? UserManager
-                    val profiles = userManager?.userProfiles ?: listOf(Process.myUserHandle())
+                    val mainIntent = Intent(Intent.ACTION_MAIN, null).apply {
+                        addCategory(Intent.CATEGORY_LAUNCHER)
+                    }
+                    val resolveInfos = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        pm.queryIntentActivities(mainIntent, PackageManager.ResolveInfoFlags.of(0L))
+                    } else {
+                        @Suppress("DEPRECATION")
+                        pm.queryIntentActivities(mainIntent, 0)
+                    }
 
-                    if (launcherApps != null) {
-                        for (profile in profiles) {
-                            val activityList = launcherApps.getActivityList(null, profile)
-                            for (act in activityList) {
-                                if (act.applicationInfo.packageName != app.packageName) {
-                                    result.add(
-                                        AppModel(
-                                            name = act.label.toString(),
-                                            packageName = act.applicationInfo.packageName,
-                                            icon = act.getBadgedIcon(0)
-                                        )
-                                    )
-                                }
-                            }
+                    for (info in resolveInfos) {
+                        val pkg = info.activityInfo.packageName
+                        if (pkg != app.packageName) {
+                            val name = info.loadLabel(pm).toString()
+                            val icon = info.loadIcon(pm)
+                            result.add(AppModel(name, pkg, icon))
                         }
                     }
                 } catch (e: Exception) {}
 
+                // इंजन 2 (फ़ुलप्रूफ़ फ़ॉलबैक): पैकेज मैनेजर सीधा स्कैन
                 if (result.isEmpty()) {
                     try {
-                        val pm = app.packageManager
-                        val mainIntent = Intent(Intent.ACTION_MAIN).apply {
-                            addCategory(Intent.CATEGORY_LAUNCHER)
+                        val installed = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            pm.getInstalledApplications(PackageManager.ApplicationInfoFlags.of(0L))
+                        } else {
+                            @Suppress("DEPRECATION")
+                            pm.getInstalledApplications(PackageManager.GET_META_DATA)
                         }
-                        val resolveInfos = pm.queryIntentActivities(mainIntent, 0)
-                        for (info in resolveInfos) {
-                            if (info.activityInfo.packageName != app.packageName) {
-                                result.add(
-                                    AppModel(
-                                        name = info.loadLabel(pm).toString(),
-                                        packageName = info.activityInfo.packageName,
-                                        icon = info.loadIcon(pm)
-                                    )
-                                }
+
+                        for (appInfo in installed) {
+                            val pkg = appInfo.packageName
+                            if (pkg != app.packageName && pm.getLaunchIntentForPackage(pkg) != null) {
+                                val name = pm.getApplicationLabel(appInfo).toString()
+                                val icon = pm.getApplicationIcon(appInfo)
+                                result.add(AppModel(name, pkg, icon))
                             }
                         }
                     } catch (e: Exception) {}
