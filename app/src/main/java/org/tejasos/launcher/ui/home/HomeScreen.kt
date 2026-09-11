@@ -13,8 +13,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -56,7 +54,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -75,8 +72,6 @@ import org.tejasos.launcher.ui.lock.TejasLockScreen
 import org.tejasos.launcher.ui.search.TejasKhojOverlay
 import org.tejasos.launcher.ui.theme.TejasHaptics
 import org.tejasos.launcher.ui.theme.TejasKesari
-import org.tejasos.launcher.ui.theme.shunyaGlass
-import org.tejasos.launcher.ui.theme.tejasParallax
 import org.tejasos.launcher.ui.widgets.bharat.NavicWeatherWidget
 import org.tejasos.launcher.ui.widgets.bharat.SanskritiPanchangWidget
 import org.tejasos.launcher.ui.widgets.bharat.TejasQuickPayBar
@@ -92,14 +87,12 @@ fun HomeScreen(
     val allApps by viewModel.installedApps.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
 
-    // सभी इंटरएक्टिव स्टेट्स
     var isControlCenterOpen by remember { mutableStateOf(false) }
     var isKhojOpen by remember { mutableStateOf(false) }
     var isVaultOpen by remember { mutableStateOf(false) }
     var isLibraryOpen by remember { mutableStateOf(false) }
     var isLockScreenOpen by remember { mutableStateOf(false) }
 
-    // गुप्त वॉल्ट पैकेज सेटिंग्स
     var vaultPackages by remember { mutableStateOf(setOf<String>()) }
 
     val visibleApps = remember(allApps, vaultPackages) {
@@ -112,119 +105,92 @@ fun HomeScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            // 🌟 फ्रॉस्टेड ग्लास बैकड्रॉप: यह पारदर्शी ग्रेडिएंट सिस्टम वॉलपेपर को धुंधला करके दिखाता है
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
-                        Color(0x880A0E17),
-                        Color(0x99111726),
-                        Color(0xB3070A10)
+                        Color(0x770A0E17),
+                        Color(0x88111726),
+                        Color(0x99070A10)
                     )
                 )
             )
-            // 🔒 खाली जगह पर डबल टैप करने पर: फोन की तेजस लॉक स्क्रीन सक्रिय होगी
-            .pointerInput(Unit) {
-                detectTapGestures(
-                    onDoubleTap = {
-                        TejasHaptics.heavyClick(context)
-                        isLockScreenOpen = true
-                    }
-                )
-            }
-            // 👆 मास्टर जेस्चर डिटेक्टर (कंट्रोल सेंटर, खोज, ऐप लाइब्रेरी)
-            .pointerInput(Unit) {
-                detectDragGestures { change, dragAmount ->
-                    // ऊपर दाईं ओर से नीचे: तेजस कंट्रोल सेंटर
-                    if (change.position.y < 380 && change.position.x > size.width * 0.55f && dragAmount.y > 30) {
-                        TejasHaptics.tick(context)
-                        isControlCenterOpen = true
-                    }
-                    // स्क्रीन के बीच से नीचे: तेजस खोज (Spotlight Search + Calculator)
-                    else if (change.position.y in 220f..800f && dragAmount.y > 35 && change.position.x in (size.width * 0.15f)..(size.width * 0.85f)) {
-                        TejasHaptics.tick(context)
-                        isKhojOpen = true
-                    }
-                    // नीचे से ऊपर स्वाइप: स्मार्ट ऐप लाइब्रेरी
-                    else if (change.position.y > size.height * 0.70f && dragAmount.y < -40) {
-                        TejasHaptics.heavyClick(context)
-                        isLibraryOpen = true
-                    }
-                }
-            }
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
         ) {
-            // 1. डायनामिक आइलैंड (Tejas Capsule)
-            TejasCapsule(
-                currentState = CapsuleState.MEDIA_ACTIVE,
-                onUpiClick = { viewModel.launchUpiScanner() }
-            )
+            // डायनामिक आइलैंड
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) {
+                        TejasHaptics.tick(context)
+                        isKhojOpen = true
+                    }
+            ) {
+                TejasCapsule(
+                    currentState = CapsuleState.MEDIA_ACTIVE,
+                    onUpiClick = { viewModel.launchUpiScanner() }
+                )
+            }
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            if (isLoading) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(color = TejasKesari)
+            // मुख्य डेस्कटॉप विजेट्स और ऐप्स
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(4),
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 120.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                item(span = { GridItemSpan(4) }) {
+                    TejasQuickPayBar(
+                        onScanQrClick = { viewModel.launchUpiScanner() },
+                        onDirectUpiClick = { isKhojOpen = true }
+                    )
                 }
-            } else {
-                // 2. मुख्य डेस्कटॉप ग्रिड (3D पैरालैक्स विजेट्स + ऐप्स)
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(4),
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 115.dp),
-                    verticalArrangement = Arrangement.spacedBy(18.dp),
-                    horizontalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-                    // विजेट 1: तेजस 1-टैप क्विक पे बार
-                    item(span = { GridItemSpan(4) }) {
-                        TejasQuickPayBar(
-                            modifier = Modifier.tejasParallax(0.5f),
-                            onScanQrClick = { viewModel.launchUpiScanner() },
-                            onDirectUpiClick = { isKhojOpen = true }
-                        )
-                    }
 
-                    // विजेट 2: राष्ट्रीय संस्कृति व पंचांग विजेट
-                    item(span = { GridItemSpan(4) }) {
-                        SanskritiPanchangWidget(
-                            modifier = Modifier.tejasParallax(0.8f)
-                        )
-                    }
+                item(span = { GridItemSpan(4) }) {
+                    SanskritiPanchangWidget()
+                }
 
-                    // विजेट 3: इसरो NavIC सैटेलाइट व मौसम हब
-                    item(span = { GridItemSpan(4) }) {
-                        NavicWeatherWidget(
-                            modifier = Modifier.tejasParallax(0.8f)
-                        )
-                    }
+                item(span = { GridItemSpan(4) }) {
+                    NavicWeatherWidget()
+                }
 
-                    // विजेट 4: कवच लाइव प्राइवेसी रडार HUD
-                    item(span = { GridItemSpan(4) }) {
-                        KavachRadarWidget(
-                            modifier = Modifier.tejasParallax(0.6f)
-                        )
-                    }
+                item(span = { GridItemSpan(4) }) {
+                    KavachRadarWidget()
+                }
 
-                    // हेडर: अनुप्रयोग व गुप्त वॉल्ट ट्रिगर
-                    item(span = { GridItemSpan(4) }) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 4.dp, vertical = 6.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
+                item(span = { GridItemSpan(4) }) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "अनुप्रयोग (${visibleApps.size})",
+                            color = Color.White.copy(alpha = 0.85f),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             Text(
-                                text = "अनुप्रयोग (Apps)",
-                                color = Color.White.copy(alpha = 0.85f),
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold
+                                text = "कंट्रोल सेंटर ⚙️",
+                                color = Color.White.copy(alpha = 0.7f),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.clickable {
+                                    TejasHaptics.tick(context)
+                                    isControlCenterOpen = true
+                                }
                             )
                             Text(
                                 text = "गुप्त वॉल्ट 🔒",
@@ -238,8 +204,20 @@ fun HomeScreen(
                             )
                         }
                     }
+                }
 
-                    // 3. ऐप आइकन्स (लॉन्ग प्रेस मेनू + iOS रेड नोटिफिकेशन बैज)
+                if (isLoading && visibleApps.isEmpty()) {
+                    item(span = { GridItemSpan(4) }) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(80.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(color = TejasKesari, modifier = Modifier.size(32.dp))
+                        }
+                    }
+                } else {
                     items(visibleApps, key = { it.packageName }) { app ->
                         AppGridItem(
                             app = app,
@@ -256,7 +234,7 @@ fun HomeScreen(
             }
         }
 
-        // 4. फ्लोटिंग स्मार्ट ग्लास डॉक (Floating Glass Dock)
+        // फ्लोटिंग स्मार्ट डॉक
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -283,7 +261,7 @@ fun HomeScreen(
             )
         }
 
-        // 5. स्मार्ट ऐप लाइब्रेरी ओवरले (2x2 Categorized Folders)
+        // ओवरले कंपोनेंट्स
         AnimatedVisibility(
             visible = isLibraryOpen,
             enter = fadeIn() + slideInVertically { it },
@@ -331,7 +309,6 @@ fun HomeScreen(
             }
         }
 
-        // 6. तेजस खोज ओवरले (Spotlight Search + Calculator)
         TejasKhojOverlay(
             isOpen = isKhojOpen,
             apps = allApps,
@@ -342,7 +319,6 @@ fun HomeScreen(
             }
         )
 
-        // 7. तेजस कंट्रोल सेंटर ओवरले
         TejasControlCenter(
             isOpen = isControlCenterOpen,
             onDismiss = { isControlCenterOpen = false },
@@ -356,7 +332,6 @@ fun HomeScreen(
             }
         )
 
-        // 8. तेजस गुप्त वॉल्ट ओवरले
         GuptVaultOverlay(
             isOpen = isVaultOpen,
             vaultApps = hiddenVaultApps,
@@ -367,7 +342,6 @@ fun HomeScreen(
             }
         )
 
-        // 9. तेजस लॉक स्क्रीन व सुभाषित इंजन (Lockscreen Overlay)
         TejasLockScreen(
             isLocked = isLockScreenOpen,
             onUnlock = { isLockScreenOpen = false },
@@ -381,9 +355,6 @@ fun HomeScreen(
     }
 }
 
-/**
- * स्क्वर्ल ऐप आइकन, नोटिफिकेशन बैज और लॉन्ग-प्रेस संदर्भ मेनू
- */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun AppGridItem(
@@ -410,7 +381,7 @@ fun AppGridItem(
     ) {
         Box(
             modifier = Modifier
-                .size(58.dp)
+                .size(56.dp)
                 .clip(RoundedCornerShape(16.dp))
                 .background(Color.White.copy(alpha = 0.08f)),
             contentAlignment = Alignment.Center
@@ -418,20 +389,9 @@ fun AppGridItem(
             Image(
                 painter = rememberAsyncImagePainter(model = app.icon),
                 contentDescription = app.name,
-                modifier = Modifier.size(46.dp)
+                modifier = Modifier.size(44.dp)
             )
 
-            // 🔴 iOS स्टाइल नोटिफिकेशन बैज (Red Dot Badge)
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(4.dp)
-                    .size(9.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFFFF3B30))
-            )
-
-            // लॉन्ग-प्रेस करने पर ड्रॉपडाउन मेनू
             DropdownMenu(
                 expanded = showMenu,
                 onDismissRequest = { showMenu = false },

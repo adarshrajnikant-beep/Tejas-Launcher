@@ -10,7 +10,6 @@ import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.os.Build
 import android.widget.Toast
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
@@ -34,17 +33,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
-    // रीयल-टाइम पैकेज रिसीवर: नया ऐप इंस्टॉल/अनइंस्टॉल होते ही स्क्रीन अपडेट होगी
     private val packageReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            val action = intent?.action
-            if (action == Intent.ACTION_PACKAGE_ADDED ||
-                action == Intent.ACTION_PACKAGE_REMOVED ||
-                action == Intent.ACTION_PACKAGE_REPLACED ||
-                action == Intent.ACTION_PACKAGE_CHANGED
-            ) {
-                loadInstalledApps()
-            }
+            loadInstalledApps()
         }
     }
 
@@ -55,9 +46,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         registerPackageReceiver()
     }
 
-    /**
-     * सिस्टम के सभी ऐप्स को बैकग्राउंड थ्रेड में स्कैन करके लोड करना
-     */
     fun loadInstalledApps() {
         viewModelScope.launch {
             _isLoading.value = true
@@ -77,12 +65,16 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
                     resolveInfos
                         .filter { it.activityInfo.packageName != getApplication<Application>().packageName }
-                        .map { resolveInfo ->
-                            AppModel(
-                                name = resolveInfo.loadLabel(pm).toString(),
-                                packageName = resolveInfo.activityInfo.packageName,
-                                icon = resolveInfo.loadIcon(pm)
-                            )
+                        .mapNotNull { resolveInfo ->
+                            try {
+                                AppModel(
+                                    name = resolveInfo.loadLabel(pm).toString(),
+                                    packageName = resolveInfo.activityInfo.packageName,
+                                    icon = resolveInfo.loadIcon(pm)
+                                )
+                            } catch (e: Exception) {
+                                null
+                            }
                         }
                         .sortedBy { it.name.lowercase() }
                 } catch (e: Exception) {
@@ -94,9 +86,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    /**
-     * ऑटो-रिफ्रेश रिसीवर रजिस्टर करना (Android 14+ सुरक्षा अनुपालन के साथ)
-     */
     private fun registerPackageReceiver() {
         if (isReceiverRegistered) return
         val filter = IntentFilter().apply {
@@ -118,14 +107,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 getApplication<Application>().registerReceiver(packageReceiver, filter)
             }
             isReceiverRegistered = true
-        } catch (e: Exception) {
-            // बैकग्राउंड रजिस्ट्रेशन एरर प्रोटेक्शन
-        }
+        } catch (e: Exception) {}
     }
 
-    /**
-     * ऐप लॉन्च इंजन (क्रैश-प्रूफ ट्राई-कैच)
-     */
     fun launchApp(packageName: String) {
         try {
             val pm = getApplication<Application>().packageManager
@@ -141,14 +125,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    /**
-     * स्वदेशी भारत UPI इंजन: 1-टैप में सीधे कैमरा स्कैनर या किसी भी प्रमुख भारतीय UPI ऐप को खोलना
-     */
     fun launchUpiScanner() {
         val context = getApplication<Application>()
         val pm = context.packageManager
-
-        // प्राथमिकता 1: जेनेरिक UPI पे Intent
         val upiIntent = Intent(Intent.ACTION_VIEW).apply {
             data = Uri.parse("upi://pay")
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -161,12 +140,11 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             } catch (e: Exception) {}
         }
 
-        // प्राथमिकता 2: भारतीय UPI ऐप्स (BHIM, PhonePe, Paytm, GooglePay) की सीधी जांच
         val popularUpiApps = listOf(
-            "in.org.npci.upiapp",                  // BHIM UPI (National)
-            "com.phonepe.app",                     // PhonePe
-            "net.one97.paytm",                     // Paytm
-            "com.google.android.apps.nbu.paisa.user" // Google Pay India
+            "in.org.npci.upiapp",
+            "com.phonepe.app",
+            "net.one97.paytm",
+            "com.google.android.apps.nbu.paisa.user"
         )
 
         for (pkg in popularUpiApps) {
@@ -180,7 +158,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             }
         }
 
-        // प्राथमिकता 3: सीधे हार्डवेयर कैमरा स्कैनर
         val cameraIntent = Intent("android.media.action.STILL_IMAGE_CAMERA").apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
@@ -191,9 +168,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    /**
-     * डिजिलॉकर वॉल्ट ट्रिगर (ऐप न होने पर वेब पोर्टल का सुरक्षित फॉलबैक)
-     */
     fun launchDigiLocker() {
         val context = getApplication<Application>()
         val pm = context.packageManager
@@ -203,7 +177,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             digiIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             context.startActivity(digiIntent)
         } else {
-            // डिजिलॉकर ऐप न होने पर सीधे भारत सरकार के आधिकारिक वेब पोर्टल पर ले जाना
             val webIntent = Intent(
                 Intent.ACTION_VIEW,
                 Uri.parse("https://www.digilocker.gov.in/")
@@ -218,9 +191,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    /**
-     * मेमोरी लीक से बचाव: व्यू-मॉडल नष्ट होने पर ब्रॉडकास्ट को सुरक्षित रूप से अनरजिस्टर करना
-     */
     override fun onCleared() {
         super.onCleared()
         if (isReceiverRegistered) {
