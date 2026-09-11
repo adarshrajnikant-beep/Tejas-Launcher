@@ -1,9 +1,7 @@
-
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- सभी ऐप्स को देखने और लॉन्च करने की अनुमति -->
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" 
         tools:ignore="QueryAllPackagesCondition" />
     <uses-permission android:name="android.permission.SET_WALLPAPER" />
@@ -25,7 +23,6 @@
             android:stateNotNeeded="true"
             android:windowSoftInputMode="adjustPan">
 
-            <!-- Android को बताता है कि यह डिवाइस का मुख्य होम स्क्रीन लॉन्चर है -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.HOME" />

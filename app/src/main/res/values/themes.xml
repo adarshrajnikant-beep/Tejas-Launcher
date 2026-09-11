@@ -1,13 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- तेजस ओएस ग्लास ट्रांसपेरेंट वॉलपेपर थीम -->
     <style name="Theme.TejasLauncher" parent="@android:style/Theme.Material.NoActionBar">
-        <!-- सिस्टम वॉलपेपर को सीधे ऐप के पीछे दिखाएं -->
         <item name="android:windowShowWallpaper">true</item>
         <item name="android:windowBackground">@android:color/transparent</item>
-        <item name="android:colorBackgroundCacheHint">@null</item>
         <item name="android:windowIsTranslucent">true</item>
-        <!-- स्टेटस बार और नेविगेशन बार को पूरी तरह ट्रांसपेरेंट रखें -->
         <item name="android:windowTranslucentStatus">true</item>
         <item name="android:windowTranslucentNavigation">true</item>
     </style>
